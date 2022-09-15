@@ -32,7 +32,7 @@ const hangmanCommand = {
         }]
     },
     onTriggerEvent: async event => {
-        if (event.userCommand.args.length != 1) {
+        if (event.userCommand.args.length !== 1) {
             return
         }
 
@@ -86,7 +86,7 @@ const guessCommand = {
             return
         }
 
-        if (event.userCommand.args.length != 1) {
+        if (event.userCommand.args.length !== 1) {
             globals.twitchChat.sendChatMessage("Invalid guess! Try again!")
             return
         }
@@ -95,7 +95,7 @@ const guessCommand = {
 
         if (guess.length > 1) {
             // more than one letter -> solve attempt
-            if (state.currentGame.word == guess) {
+            if (state.currentGame.word === guess) {
                 globals.twitchChat.sendChatMessage('Congratulations, you have successfully solved the hangman quiz! The solution was: "' + state.currentGame.word + '"')
                 globals.commandManager.unregisterSystemCommand(guessCommand.definition.id)
                 state.currentGame = null;
