@@ -49,6 +49,7 @@ const hangmanCommand = {
                     guesses: []
                 }
                 globals.twitchChat.sendChatMessage(renderCurrentWord());
+                globals.httpServer.sendToOverlay("hangman", {letters: getLetters()});
                 globals.commandManager.registerSystemCommand(guessCommand)
                 break;
             case "stop":
@@ -117,6 +118,7 @@ const guessCommand = {
             }
 
             globals.twitchChat.sendChatMessage(renderCurrentWord());
+            globals.httpServer.sendToOverlay("hangman", {letters: getLetters()});
         }
     }
 }
@@ -141,18 +143,77 @@ async function selectWord() {
 
 function isComplete() {
     return state.currentGame.word.split('').reduce((prev, curr) => {
+        console.info(prev, curr);
         return prev && state.currentGame.guesses.includes(curr);
-    })
+    }, true)
+}
+
+function getLetters() {
+    return state.currentGame.word.split('').map(letter =>
+        state.currentGame.guesses.includes(letter) ? letter : null
+    )
 }
 
 function renderCurrentWord() {
-    return state.currentGame.word.split('').map((curr) => {
-        if (state.currentGame.guesses.includes(curr)) {
-            return curr;
-        } else {
-            return "_";
+    return getLetters().map(letter => letter ? letter : '_').join(' ')
+}
+
+const hangmanStyles = `
+    .hangman {
+        color: black;
+    }
+    .hangman-gallows {
+        height: 400px;
+    }
+    .hangman-letters {
+        font-size: 24pt;
+        text-shadow: 0 0 3px white;
+    }
+`
+
+const hangmanEffect = {
+    definition: {
+        id: "de.justjakob.hangmangame::overlayEffect",
+        name: "Hangman overlay",
+        description: "Hangman overlay",
+        icon: "fa-sign-hanging",
+        categories: [],
+        dependency: [],
+    },
+    globalSettings: {},
+    optionsTemplate: ``,
+    optionsController: ($scope, utilityService) => {
+
+    },
+    optionsValidator: effect => {
+        return []
+    },
+    onTriggerEvent: async event => {
+        return true;
+    },
+    overlayExtension: {
+        dependencies: {
+            css: [],
+            globalStyles: hangmanStyles,
+            js: []
+        },
+        event: {
+            name: "hangman",
+            onOverlayEvent: data => {
+                let $el = $('.wrapper').find('.hangman')
+                if (!$el.length) {
+                    $el = $('<div class="hangman"><div class="hangman-gallows"></div><div class="hangman-letters"></div></div>')
+                    $('.wrapper').append($el);
+                }
+
+                if (data.letters) {
+                    $el.find('.hangman-letters').text(data.letters.map(l => l ? l : "_").join(' '))
+                }
+
+                console.info(data);
+            }
         }
-    }).join(' ')
+    }
 }
 
  /**
@@ -194,23 +255,28 @@ const gameDef = {
         }
     },
     onLoad: gameSettings => {
-        globals.commandManager.registerSystemCommand(hangmanCommand)
         globals.settings = gameSettings;
+        globals.commandManager.registerSystemCommand(hangmanCommand)
+        globals.effectManager.registerEffect(hangmanEffect)
     },
     onUnload: gameSettings => {
+        globals.settings = gameSettings;
         globals.commandManager.unregisterSystemCommand(hangmanCommand.definition.id)
         globals.commandManager.unregisterSystemCommand(guessCommand.definition.id)
+        globals.effectManager.unregisterEffect(hangmanEffect.definition.id)
     },
     onSettingsUpdate: gameSettings => {
         globals.settings = gameSettings
-    },
+    }
 }
 
 const globals = {
     gameManager: null,
     commandManager: null,
     twitchChat: null,
-    settings: null
+    settings: null,
+    httpServer: null,
+    effectManager: null
 }
 
 module.exports = {
@@ -219,6 +285,8 @@ module.exports = {
         globals.gameManager = runRequest.modules.gameManager;
         globals.commandManager = runRequest.modules.commandManager;
         globals.twitchChat = runRequest.modules.twitchChat;
+        globals.httpServer = runRequest.modules.httpServer;
+        globals.effectManager = runRequest.modules.effectManager;
         runRequest.modules.gameManager.registerGame(gameDef);
     },
     getScriptManifest: () => {
