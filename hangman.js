@@ -89,25 +89,45 @@ const guessCommand = {
             return
         }
 
-        if (event.userCommand.args.length !== 1) {
+        const { userCommand } = event
+
+        if (userCommand.args.length !== 1) {
             globals.twitchChat.sendChatMessage("Invalid guess! Try again!")
             return
         }
 
-        const guess = event.userCommand.args[0].toLowerCase().trim();
+        const username = userCommand.commandSender
+        const { currencyId, guessCost, payout } = globals.settings.settings.currency
+
+        if (guessCost) {
+            const userBalance = await globals.currencyDb.getUserCurrencyAmount(username, currencyId);
+
+            if (userBalance < guessCost) {
+                globals.twitchChat.sendChatMessage(`Sorry, ${username}, you don't have enough points for a guess!`);
+                return;
+            }
+
+            await globals.currencyDb.adjustCurrencyForUser(username, currencyId, -guessCost);
+        }
+
+        const guess = userCommand.args[0].toLowerCase().trim();
+
+        const winGame = async () => {
+            if (payout) {
+                await globals.currencyDb.adjustCurrencyForUser(username, currencyId, payout);
+            }
+            const fails = getFails();
+            globals.twitchChat.sendChatMessage(`Congratulations, ${username}, you have successfully solved the hangman quiz! The solution was: "${state.currentGame.word}"`)
+            globals.commandManager.unregisterSystemCommand(guessCommand.definition.id)
+            globals.httpServer.sendToOverlay("hangman", {letters: state.currentGame.word.split(''), fails: fails, finished: true, lingerTime: globals.settings.settings.overlay.lingerTime});
+            globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-won')
+            globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-ended')
+            state.currentGame = null;
+        }
 
         if (guess.length > 1) {
-            const fails = getFails();
-
             // more than one letter -> solve attempt
-            if (state.currentGame.word === guess) {
-                globals.twitchChat.sendChatMessage('Congratulations, you have successfully solved the hangman quiz! The solution was: "' + state.currentGame.word + '"')
-                globals.commandManager.unregisterSystemCommand(guessCommand.definition.id)
-                globals.httpServer.sendToOverlay("hangman", {letters: state.currentGame.word.split(''), fails: fails, finished: true, lingerTime: globals.settings.settings.overlay.lingerTime});
-                globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-won')
-                globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-ended')
-                state.currentGame = null;
-            }
+            if (state.currentGame.word === guess) await winGame()
         } else {
             // single letter -> guess
             if (state.currentGame.guesses.includes(guess)) {
@@ -117,17 +137,12 @@ const guessCommand = {
 
             state.currentGame.guesses.push(guess);
 
-            const fails = getFails();
-
             if (isComplete()) {
-                globals.twitchChat.sendChatMessage('Congratulations, you have successfully solved the hangman quiz! The solution was: "' + state.currentGame.word + '"')
-                globals.commandManager.unregisterSystemCommand(guessCommand.definition.id)
-                globals.httpServer.sendToOverlay("hangman", {letters: state.currentGame.word.split(''), fails: fails, finished: true, lingerTime: globals.settings.settings.overlay.lingerTime});
-                globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-won')
-                globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-ended')
-                state.currentGame = null;
+                await winGame();
                 return
             }
+
+            const fails = getFails();
 
             if (fails >= 10) {
                 globals.twitchChat.sendChatMessage('Sorry, you did not solve the hangman quiz. The correct word was: "' + state.currentGame.word + '"')
@@ -248,7 +263,7 @@ const hangmanEffect = {
         event: {
             name: "hangman",
             onOverlayEvent: data => {
-                const $wrapper = $('wrapper')
+                const $wrapper = $('.wrapper')
                 let $el = $wrapper.find('.hangman')
 
                 if (data.letters) {
@@ -376,6 +391,39 @@ const gameDef = {
                     }
                 }
             }
+        },
+        currency: {
+            title: "Currency settings",
+            description: "Configure costs and rewards",
+            sortRank: 6,
+            settings: {
+                currencyId: {
+                    type: "currency-select",
+                    title: "Currency",
+                    description: "Which currency to use",
+                    validation: {
+                        required: true
+                    }
+                },
+                guessCost: {
+                    type: "number",
+                    title: "Guess cost",
+                    description: "How much will a single guess cost",
+                    default: 0,
+                    validation: {
+                        required: false
+                    }
+                },
+                payout: {
+                    type: "number",
+                    title: "Payout",
+                    description: "How much the winner of a game will receive",
+                    default: 0,
+                    validation: {
+                        required: false
+                    }
+                }
+            }
         }
     },
     onLoad: gameSettings => {
@@ -400,6 +448,7 @@ const globals = {
     settings: null,
     httpServer: null,
     eventManager: null,
+    currencyDb: null,
 }
 
 module.exports = {
@@ -410,6 +459,7 @@ module.exports = {
         globals.twitchChat = runRequest.modules.twitchChat;
         globals.httpServer = runRequest.modules.httpServer;
         globals.eventManager = runRequest.modules.eventManager;
+        globals.currencyDb = runRequest.modules.currencyDb;
         runRequest.modules.gameManager.registerGame(gameDef);
         runRequest.modules.eventManager.registerEventSource(hangmanEventSource);
         runRequest.modules.effectManager.registerEffect(hangmanEffect)
