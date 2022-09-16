@@ -51,10 +51,12 @@ const hangmanCommand = {
                 globals.twitchChat.sendChatMessage(renderCurrentWord());
                 globals.httpServer.sendToOverlay("hangman", {letters: getLetters(), fails: getFails()});
                 globals.commandManager.registerSystemCommand(guessCommand)
+                globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-started')
                 break;
             case "stop":
                 globals.commandManager.unregisterSystemCommand(guessCommand.definition.id)
                 globals.httpServer.sendToOverlay("hangman", {});
+                globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-ended')
                 state.currentGame = null;
                 break;
         }
@@ -116,6 +118,8 @@ const guessCommand = {
                 globals.twitchChat.sendChatMessage('Congratulations, you have successfully solved the hangman quiz! The solution was: "' + state.currentGame.word + '"')
                 globals.commandManager.unregisterSystemCommand(guessCommand.definition.id)
                 globals.httpServer.sendToOverlay("hangman", {letters: state.currentGame.word.split(''), fails: fails, finished: true});
+                globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-won')
+                globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-ended')
                 state.currentGame = null;
                 return
             }
@@ -124,6 +128,8 @@ const guessCommand = {
                 globals.twitchChat.sendChatMessage('Sorry, you did not solve the hangman quiz. The correct word was: "' + state.currentGame.word + '"')
                 globals.commandManager.unregisterSystemCommand(guessCommand.definition.id)
                 globals.httpServer.sendToOverlay("hangman", {letters: state.currentGame.word.split(''), fails: fails, finished: true});
+                globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-lost')
+                globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-ended')
                 state.currentGame = null;
                 return
             }
@@ -283,6 +289,33 @@ const hangmanEffect = {
     }
 }
 
+const hangmanEventSource = {
+    id: "de.justjakob.hangmangame",
+    name: "Hangman",
+    description: "Events from the Hangman game.",
+    events: [{
+        id: "game-started",
+        name: "Game started",
+        description: "When a new game is started",
+        cached: false
+    },{
+        id: "game-ended",
+        name: "Game ended",
+        description: "When a game ends (independent of outcome)",
+        cached: false
+    },{
+        id: "game-won",
+        name: "Game won",
+        description: "When a game is won",
+        cached: false
+    },{
+        id: "game-lost",
+        name: "Game lost",
+        description: "When a game is lost",
+        cached: false
+    }]
+}
+
  /**
   * @type {import('../../game-manager').FirebotGame}
   */
@@ -343,7 +376,8 @@ const globals = {
     twitchChat: null,
     settings: null,
     httpServer: null,
-    effectManager: null
+    effectManager: null,
+    eventManager: null,
 }
 
 module.exports = {
@@ -354,7 +388,9 @@ module.exports = {
         globals.twitchChat = runRequest.modules.twitchChat;
         globals.httpServer = runRequest.modules.httpServer;
         globals.effectManager = runRequest.modules.effectManager;
+        globals.eventManager = runRequest.modules.eventManager;
         runRequest.modules.gameManager.registerGame(gameDef);
+        runRequest.modules.eventManager.registerEventSource(hangmanEventSource);
     },
     getScriptManifest: () => {
         return {
