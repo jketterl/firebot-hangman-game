@@ -53,7 +53,6 @@ const hangmanCommand = {
                 globals.commandManager.registerSystemCommand(guessCommand)
                 break;
             case "stop":
-                console.info("stopping hangman")
                 globals.commandManager.unregisterSystemCommand(guessCommand.definition.id)
                 state.currentGame = null;
                 break;
@@ -143,7 +142,6 @@ async function selectWord() {
 
 function isComplete() {
     return state.currentGame.word.split('').reduce((prev, curr) => {
-        console.info(prev, curr);
         return prev && state.currentGame.guesses.includes(curr);
     }, true)
 }
@@ -160,14 +158,18 @@ function renderCurrentWord() {
 
 const hangmanStyles = `
     .hangman {
-        color: black;
+        color: white;
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
     }
     .hangman-gallows {
         height: 400px;
     }
     .hangman-letters {
         font-size: 24pt;
-        text-shadow: 0 0 3px white;
+        text-shadow: 0 0 3px black;
     }
 `
 
@@ -209,8 +211,6 @@ const hangmanEffect = {
                 if (data.letters) {
                     $el.find('.hangman-letters').text(data.letters.map(l => l ? l : "_").join(' '))
                 }
-
-                console.info(data);
             }
         }
     }
