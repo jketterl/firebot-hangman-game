@@ -49,11 +49,12 @@ const hangmanCommand = {
                     guesses: []
                 }
                 globals.twitchChat.sendChatMessage(renderCurrentWord());
-                globals.httpServer.sendToOverlay("hangman", {letters: getLetters()});
+                globals.httpServer.sendToOverlay("hangman", {letters: getLetters(), fails: getFails()});
                 globals.commandManager.registerSystemCommand(guessCommand)
                 break;
             case "stop":
                 globals.commandManager.unregisterSystemCommand(guessCommand.definition.id)
+                globals.httpServer.sendToOverlay("hangman", {});
                 state.currentGame = null;
                 break;
         }
@@ -109,15 +110,26 @@ const guessCommand = {
 
             state.currentGame.guesses.push(guess);
 
+            const fails = getFails();
+
             if (isComplete()) {
                 globals.twitchChat.sendChatMessage('Congratulations, you have successfully solved the hangman quiz! The solution was: "' + state.currentGame.word + '"')
                 globals.commandManager.unregisterSystemCommand(guessCommand.definition.id)
+                globals.httpServer.sendToOverlay("hangman", {letters: state.currentGame.word.split(''), fails: fails, finished: true});
+                state.currentGame = null;
+                return
+            }
+
+            if (fails >= 10) {
+                globals.twitchChat.sendChatMessage('Sorry, you did not solve the hangman quiz. The correct word was: "' + state.currentGame.word + '"')
+                globals.commandManager.unregisterSystemCommand(guessCommand.definition.id)
+                globals.httpServer.sendToOverlay("hangman", {letters: state.currentGame.word.split(''), fails: fails, finished: true});
                 state.currentGame = null;
                 return
             }
 
             globals.twitchChat.sendChatMessage(renderCurrentWord());
-            globals.httpServer.sendToOverlay("hangman", {letters: getLetters()});
+            globals.httpServer.sendToOverlay("hangman", {letters: getLetters(), fails});
         }
     }
 }
@@ -152,6 +164,13 @@ function getLetters() {
     )
 }
 
+function getFails() {
+    const filtered = state.currentGame.guesses.filter(letter =>
+        !state.currentGame.word.includes(letter)
+    )
+    return filtered.length
+}
+
 function renderCurrentWord() {
     return getLetters().map(letter => letter ? letter : '_').join(' ')
 }
@@ -164,12 +183,28 @@ const hangmanStyles = `
         top: 50%;
         transform: translate(-50%, -50%);
     }
+    
     .hangman-gallows {
+        width: 400px;
         height: 400px;
     }
+    
+    .hangman-gallows svg {
+        width: 100%;
+    }
+    
+    .hangman-gallows .hangman-elements {
+        stroke: white;
+    }
+    
+    .hangman-gallows .hangman-elements * {
+        display: none;
+    } 
+    
     .hangman-letters {
         font-size: 24pt;
         text-shadow: 0 0 3px black;
+        text-align: center;
     }
 `
 
@@ -203,13 +238,45 @@ const hangmanEffect = {
             name: "hangman",
             onOverlayEvent: data => {
                 let $el = $('.wrapper').find('.hangman')
-                if (!$el.length) {
-                    $el = $('<div class="hangman"><div class="hangman-gallows"></div><div class="hangman-letters"></div></div>')
-                    $('.wrapper').append($el);
-                }
 
                 if (data.letters) {
-                    $el.find('.hangman-letters').text(data.letters.map(l => l ? l : "_").join(' '))
+                    if (!$el.length) {
+                        $el = $(`
+                            <div class="hangman">
+                                <div class="hangman-gallows">
+                                    <svg viewbox="0 0 210 210">
+                                        <g class="hangman-elements" style="fill:none;stroke-width:5;stroke-linecap:round;stroke-dasharray:none;stroke-opacity:1" transform="translate(5,5)">
+                                            <path d="M 0,200 H 200" />
+                                            <path d="M 150,200 V 0" />
+                                            <path d="M 150,0 H 75" />
+                                            <path d="M 75,0 V 50" />
+                                            <circle cx="75" cy="75" r="25" />
+                                            <path d="m 75,100 v 50" />
+                                            <path d="M 75,115 115,95" />
+                                            <path d="M 75,115 35,90" />
+                                            <path d="m 75,150 40,25" />
+                                            <path d="M 75,150 35,175" />
+                                        </g>
+                                    </svg>
+                                </div>
+                                <div class="hangman-letters"></div>
+                            </div>`)
+                        $('.wrapper').append($el);
+                    }
+
+                    $el.find('.hangman-letters').text(data.letters ? data.letters.map(l => l ? l : "_").join(' ') : '')
+
+                    const fails = data.fails || 0;
+
+                    $el.find('.hangman-elements *').each(function (index) {
+                        $(this)[(index >= fails ? 'hide' : 'show')]();
+                    });
+
+                    if (data.finished) setTimeout(() => {
+                        $el.remove()
+                    }, 5000);
+                } else {
+                    $el.remove();
                 }
             }
         }
