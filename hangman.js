@@ -97,10 +97,15 @@ const guessCommand = {
         const guess = event.userCommand.args[0].toLowerCase().trim();
 
         if (guess.length > 1) {
+            const fails = getFails();
+
             // more than one letter -> solve attempt
             if (state.currentGame.word === guess) {
                 globals.twitchChat.sendChatMessage('Congratulations, you have successfully solved the hangman quiz! The solution was: "' + state.currentGame.word + '"')
                 globals.commandManager.unregisterSystemCommand(guessCommand.definition.id)
+                globals.httpServer.sendToOverlay("hangman", {letters: state.currentGame.word.split(''), fails: fails, finished: true, lingerTime: globals.settings.settings.overlay.lingerTime});
+                globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-won')
+                globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-ended')
                 state.currentGame = null;
             }
         } else {
@@ -117,7 +122,7 @@ const guessCommand = {
             if (isComplete()) {
                 globals.twitchChat.sendChatMessage('Congratulations, you have successfully solved the hangman quiz! The solution was: "' + state.currentGame.word + '"')
                 globals.commandManager.unregisterSystemCommand(guessCommand.definition.id)
-                globals.httpServer.sendToOverlay("hangman", {letters: state.currentGame.word.split(''), fails: fails, finished: true});
+                globals.httpServer.sendToOverlay("hangman", {letters: state.currentGame.word.split(''), fails: fails, finished: true, lingerTime: globals.settings.settings.overlay.lingerTime});
                 globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-won')
                 globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-ended')
                 state.currentGame = null;
@@ -127,7 +132,7 @@ const guessCommand = {
             if (fails >= 10) {
                 globals.twitchChat.sendChatMessage('Sorry, you did not solve the hangman quiz. The correct word was: "' + state.currentGame.word + '"')
                 globals.commandManager.unregisterSystemCommand(guessCommand.definition.id)
-                globals.httpServer.sendToOverlay("hangman", {letters: state.currentGame.word.split(''), fails: fails, finished: true});
+                globals.httpServer.sendToOverlay("hangman", {letters: state.currentGame.word.split(''), fails: fails, finished: true, lingerTime: globals.settings.settings.overlay.lingerTime});
                 globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-lost')
                 globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-ended')
                 state.currentGame = null;
@@ -243,7 +248,8 @@ const hangmanEffect = {
         event: {
             name: "hangman",
             onOverlayEvent: data => {
-                let $el = $('.wrapper').find('.hangman')
+                const $wrapper = $('wrapper')
+                let $el = $wrapper.find('.hangman')
 
                 if (data.letters) {
                     if (!$el.length) {
@@ -267,7 +273,7 @@ const hangmanEffect = {
                                 </div>
                                 <div class="hangman-letters"></div>
                             </div>`)
-                        $('.wrapper').append($el);
+                        $wrapper.append($el);
                     }
 
                     $el.find('.hangman-letters').text(data.letters ? data.letters.map(l => l ? l : "_").join(' ') : '')
@@ -280,7 +286,7 @@ const hangmanEffect = {
 
                     if (data.finished) setTimeout(() => {
                         $el.remove()
-                    }, 5000);
+                    }, (data.lingerTime || 5) * 1000)
                 } else {
                     $el.remove();
                 }
@@ -326,7 +332,7 @@ const gameDef = {
     description: "Interactive word guessing game", // verbose description of the game, shown when clicking edit on the game
     icon: "sign-hanging", // Font Awesome 5 icon to use for the game
     settingCategories: {
-        wordSource:{
+        wordSource: {
             title: "Dictionary settings",
             description: "Where to find words to guess for hangman",
             sortRank: 1,
@@ -352,21 +358,38 @@ const gameDef = {
                     }
                 }
             }
+        },
+        overlay: {
+            title: "Overlay settings",
+            description: "Settings for the hangman display on the firebot overlay",
+            sortRank: 4,
+            settings: {
+                lingerTime: {
+                    type: "number",
+                    title: "Overlay linger time",
+                    description: "How long the hangman overlay should stay on screen after a game is finished (in seconds)",
+                    default: 5,
+                    sortRank: 5,
+                    validation: {
+                        required: false,
+                        min: 0
+                    }
+                }
+            }
         }
     },
     onLoad: gameSettings => {
         globals.settings = gameSettings;
         globals.commandManager.registerSystemCommand(hangmanCommand)
-        globals.effectManager.registerEffect(hangmanEffect)
     },
     onUnload: gameSettings => {
         globals.settings = gameSettings;
         globals.commandManager.unregisterSystemCommand(hangmanCommand.definition.id)
         globals.commandManager.unregisterSystemCommand(guessCommand.definition.id)
-        globals.effectManager.unregisterEffect(hangmanEffect.definition.id)
     },
     onSettingsUpdate: gameSettings => {
-        globals.settings = gameSettings
+        // this seems to be undefined, so i don't think this works as intended
+        //globals.settings = gameSettings
     }
 }
 
@@ -376,7 +399,6 @@ const globals = {
     twitchChat: null,
     settings: null,
     httpServer: null,
-    effectManager: null,
     eventManager: null,
 }
 
@@ -387,10 +409,10 @@ module.exports = {
         globals.commandManager = runRequest.modules.commandManager;
         globals.twitchChat = runRequest.modules.twitchChat;
         globals.httpServer = runRequest.modules.httpServer;
-        globals.effectManager = runRequest.modules.effectManager;
         globals.eventManager = runRequest.modules.eventManager;
         runRequest.modules.gameManager.registerGame(gameDef);
         runRequest.modules.eventManager.registerEventSource(hangmanEventSource);
+        runRequest.modules.effectManager.registerEffect(hangmanEffect)
     },
     getScriptManifest: () => {
         return {
