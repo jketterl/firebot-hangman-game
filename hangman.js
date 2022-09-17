@@ -91,7 +91,7 @@ const guessCommand = {
 
         const { userCommand } = event
 
-        if (userCommand.args.length !== 1) {
+        if (userCommand.args.length < 1) {
             globals.twitchChat.sendChatMessage("Invalid guess! Try again!", null, null, event.chatMessage.id)
             return
         }
@@ -110,7 +110,7 @@ const guessCommand = {
             await globals.currencyDb.adjustCurrencyForUser(username, currencyId, -guessCost);
         }
 
-        const guess = userCommand.args[0].toLowerCase().trim();
+        const guess = userCommand.args.join(' ').toLowerCase().trim();
 
         const winGame = async () => {
             if (payout) {
@@ -119,7 +119,7 @@ const guessCommand = {
             const fails = getFails();
             globals.twitchChat.sendChatMessage(`Congratulations, ${username}, you have successfully solved the hangman quiz! The solution was: "${state.currentGame.word}"`)
             globals.commandManager.unregisterSystemCommand(guessCommand.definition.id)
-            globals.httpServer.sendToOverlay("hangman", {letters: state.currentGame.word.split(''), fails: fails, finished: true, lingerTime: globals.settings.settings.overlay.lingerTime});
+            globals.httpServer.sendToOverlay("hangman", {letters: getLetters(true), fails: fails, finished: true, lingerTime: globals.settings.settings.overlay.lingerTime});
             globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-won')
             globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-ended')
             state.currentGame = null;
@@ -147,7 +147,7 @@ const guessCommand = {
             if (fails >= 10) {
                 globals.twitchChat.sendChatMessage(`Sorry, you did not solve the hangman quiz. The correct word was: "${state.currentGame.word}"`)
                 globals.commandManager.unregisterSystemCommand(guessCommand.definition.id)
-                globals.httpServer.sendToOverlay("hangman", {letters: state.currentGame.word.split(''), fails: fails, finished: true, lingerTime: globals.settings.settings.overlay.lingerTime});
+                globals.httpServer.sendToOverlay("hangman", {letters: getLetters(true), fails: fails, finished: true, lingerTime: globals.settings.settings.overlay.lingerTime});
                 globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-lost')
                 globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-ended')
                 state.currentGame = null;
@@ -161,32 +161,55 @@ const guessCommand = {
 }
 
 async function selectWord() {
-    if (globals.settings.settings.wordSource.dictionaryFile) {
-        return new Promise((resolve, reject) => {
-            fs.readFile(globals.settings.settings.wordSource.dictionaryFile, "utf-8", function(err, data) {
-                if (err) {
-                    reject(err)
-                    return
-                }
+    const source = globals.settings.settings.wordSource.source || "file";
 
-                const lines = data.split('\n');
+    switch (source) {
+        case "file":
+            return new Promise((resolve, reject) => {
+                fs.readFile(globals.settings.settings.wordSource.dictionaryFile, "utf-8", function(err, data) {
+                    if (err) return reject(err)
 
-                resolve(lines[Math.floor(Math.random() * lines.length)])
+                    const lines = data.split('\n');
+
+                    resolve(lines[Math.floor(Math.random() * lines.length)])
+                })
             })
-        })
+        case "urbandictionary":
+            return new Promise((resolve, reject) => {
+                globals.request('https://api.urbandictionary.com/v0/random', function(err, response, body) {
+                    if (err) return reject(err)
+
+                    try {
+                        const result = JSON.parse(body)
+                        const { list } = result
+                        const item = list[Math.floor(Math.random() * list.length)];
+                        resolve(item.word)
+                    } catch (e) {
+                        reject(e);
+                    }
+                })
+            })
     }
-    return Promise.resolve("innuendo")
+
+    return Promise.reject(new Error("Selected hangman guessword source is invalid!"))
+}
+
+function isLetterShown(letter) {
+    return letter === ' ' || state.currentGame.guesses.includes(letter);
 }
 
 function isComplete() {
     return state.currentGame.word.split('').reduce((prev, curr) => {
-        return prev && state.currentGame.guesses.includes(curr);
+        return prev && isLetterShown(curr);
     }, true)
 }
 
-function getLetters() {
+function getLetters(won) {
     return state.currentGame.word.split('').map(letter =>
-        state.currentGame.guesses.includes(letter) ? letter : null
+        won || isLetterShown(letter) ? letter : null
+    ).map(letter =>
+        // transform space into a visible space character
+        letter === ' ' ? '␣' : letter
     )
 }
 
@@ -352,14 +375,16 @@ const gameDef = {
             description: "Where to find words to guess for hangman",
             sortRank: 1,
             settings: {
-                wordnikApiKey: {
-                    type: "string",
-                    title: "Wordnik API key",
-                    description: "Get an API key for Wordnik over on wordnik.com",
-                    default: "",
+                source: {
+                    type: "enum",
+                    title: "Guessword source",
+                    description: "Where to get words to guess from",
+                    default: "file",
                     sortRank: 2,
-                    validation: {
-                        required: false
+                    options: {
+                        file: "Dictionary file",
+                        // wordnik: "Wordnik API",
+                        urbandictionary: "Urban Dictionary API (explicit)",
                     }
                 },
                 dictionaryFile: {
@@ -371,20 +396,30 @@ const gameDef = {
                     validation: {
                         required: false
                     }
+                },
+                wordnikApiKey: {
+                    type: "string",
+                    title: "Wordnik API key",
+                    description: "Get an API key for Wordnik over on wordnik.com",
+                    default: "",
+                    sortRank: 4,
+                    validation: {
+                        required: false
+                    }
                 }
             }
         },
         overlay: {
             title: "Overlay settings",
             description: "Settings for the hangman display on the firebot overlay",
-            sortRank: 4,
+            sortRank: 5,
             settings: {
                 lingerTime: {
                     type: "number",
                     title: "Overlay linger time",
                     description: "How long the hangman overlay should stay on screen after a game is finished (in seconds)",
                     default: 5,
-                    sortRank: 5,
+                    sortRank: 6,
                     validation: {
                         required: false,
                         min: 0
@@ -395,12 +430,13 @@ const gameDef = {
         currency: {
             title: "Currency settings",
             description: "Configure costs and rewards",
-            sortRank: 6,
+            sortRank: 7,
             settings: {
                 currencyId: {
                     type: "currency-select",
                     title: "Currency",
                     description: "Which currency to use",
+                    sortRank: 8,
                     validation: {
                         required: true
                     }
@@ -410,6 +446,7 @@ const gameDef = {
                     title: "Guess cost",
                     description: "How much will a single guess cost",
                     default: 0,
+                    sortRank: 9,
                     validation: {
                         required: false
                     }
@@ -419,6 +456,7 @@ const gameDef = {
                     title: "Payout",
                     description: "How much the winner of a game will receive",
                     default: 0,
+                    sortRank: 10,
                     validation: {
                         required: false
                     }
@@ -449,6 +487,7 @@ const globals = {
     httpServer: null,
     eventManager: null,
     currencyDb: null,
+    request: null,
 }
 
 module.exports = {
@@ -460,6 +499,7 @@ module.exports = {
         globals.httpServer = runRequest.modules.httpServer;
         globals.eventManager = runRequest.modules.eventManager;
         globals.currencyDb = runRequest.modules.currencyDb;
+        globals.request = runRequest.modules.request;
         runRequest.modules.gameManager.registerGame(gameDef);
         runRequest.modules.eventManager.registerEventSource(hangmanEventSource);
         runRequest.modules.effectManager.registerEffect(hangmanEffect)
