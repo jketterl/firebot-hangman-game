@@ -39,7 +39,7 @@ const hangmanCommand = {
         switch (event.userCommand.args[0]) {
             case "start":
                 if (state.currentGame) {
-                    globals.twitchChat.sendChatMessage("There is already a game of hangman running!")
+                    globals.twitchChat.sendChatMessage("There is already a game of hangman running!", null, null, event.chatMessage.id)
                     return
                 }
                 // break intentionally omitted
@@ -92,7 +92,7 @@ const guessCommand = {
         const { userCommand } = event
 
         if (userCommand.args.length !== 1) {
-            globals.twitchChat.sendChatMessage("Invalid guess! Try again!")
+            globals.twitchChat.sendChatMessage("Invalid guess! Try again!", null, null, event.chatMessage.id)
             return
         }
 
@@ -103,7 +103,7 @@ const guessCommand = {
             const userBalance = await globals.currencyDb.getUserCurrencyAmount(username, currencyId);
 
             if (userBalance < guessCost) {
-                globals.twitchChat.sendChatMessage(`Sorry, ${username}, you don't have enough points for a guess!`);
+                globals.twitchChat.sendChatMessage(`Sorry, ${username}, you don't have enough points for a guess!`, null, null, event.chatMessage.id);
                 return;
             }
 
@@ -131,7 +131,7 @@ const guessCommand = {
         } else {
             // single letter -> guess
             if (state.currentGame.guesses.includes(guess)) {
-                globals.twitchChat.sendChatMessage('Letter "' + guess + '" has already been guessed. Try again!');
+                globals.twitchChat.sendChatMessage(`Letter "${guess}" has already been guessed. Try again!`, null, null, event.chatMessage.id);
                 return
             }
 
@@ -145,7 +145,7 @@ const guessCommand = {
             const fails = getFails();
 
             if (fails >= 10) {
-                globals.twitchChat.sendChatMessage('Sorry, you did not solve the hangman quiz. The correct word was: "' + state.currentGame.word + '"')
+                globals.twitchChat.sendChatMessage(`Sorry, you did not solve the hangman quiz. The correct word was: "${state.currentGame.word}"`)
                 globals.commandManager.unregisterSystemCommand(guessCommand.definition.id)
                 globals.httpServer.sendToOverlay("hangman", {letters: state.currentGame.word.split(''), fails: fails, finished: true, lingerTime: globals.settings.settings.overlay.lingerTime});
                 globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-lost')
