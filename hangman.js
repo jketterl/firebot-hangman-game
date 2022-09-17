@@ -45,9 +45,13 @@ const hangmanCommand = {
                 // break intentionally omitted
             case "restart":
                 state.currentGame = {
-                    word: (await selectWord()).toLowerCase().trim(),
                     guesses: []
                 }
+
+                const word = await selectWord()
+                Object.assign(state.currentGame, word)
+                state.currentGame.word = state.currentGame.word.toLowerCase().trim()
+
                 globals.twitchChat.sendChatMessage(renderCurrentWord());
                 globals.httpServer.sendToOverlay("hangman", {letters: getLetters(), fails: getFails()});
                 globals.commandManager.registerSystemCommand(guessCommand)
@@ -118,6 +122,7 @@ const guessCommand = {
             }
             const fails = getFails();
             globals.twitchChat.sendChatMessage(`Congratulations, ${username}, you have successfully solved the hangman quiz! The solution was: "${state.currentGame.word}"`)
+            sendDefinition()
             globals.commandManager.unregisterSystemCommand(guessCommand.definition.id)
             globals.httpServer.sendToOverlay("hangman", {letters: getLetters(true), fails: fails, finished: true, lingerTime: globals.settings.settings.overlay.lingerTime});
             globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-won')
@@ -146,6 +151,7 @@ const guessCommand = {
 
             if (fails >= 10) {
                 globals.twitchChat.sendChatMessage(`Sorry, you did not solve the hangman quiz. The correct word was: "${state.currentGame.word}"`)
+                sendDefinition()
                 globals.commandManager.unregisterSystemCommand(guessCommand.definition.id)
                 globals.httpServer.sendToOverlay("hangman", {letters: getLetters(true), fails: fails, finished: true, lingerTime: globals.settings.settings.overlay.lingerTime});
                 globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-lost')
@@ -160,6 +166,12 @@ const guessCommand = {
     }
 }
 
+function sendDefinition() {
+    const { provider, definition } = state.currentGame
+    if (!provider || !definition) return
+    globals.twitchChat.sendChatMessage(`Definition from ${provider}: ${definition}`)
+}
+
 async function selectWord() {
     const source = globals.settings.settings.wordSource.source || "file";
 
@@ -171,7 +183,10 @@ async function selectWord() {
 
                     const lines = data.split('\n');
 
-                    resolve(lines[Math.floor(Math.random() * lines.length)])
+                    resolve({
+                        word: lines[Math.floor(Math.random() * lines.length)],
+                        provider: "Dictionary file"
+                    })
                 })
             })
         case "urbandictionary":
@@ -183,7 +198,11 @@ async function selectWord() {
                         const result = JSON.parse(body)
                         const { list } = result
                         const item = list[Math.floor(Math.random() * list.length)];
-                        resolve(item.word)
+                        const { word, definition, example } = item
+                        resolve({
+                            word, definition, example,
+                            provider: "Urban Dictionary"
+                        })
                     } catch (e) {
                         reject(e);
                     }
