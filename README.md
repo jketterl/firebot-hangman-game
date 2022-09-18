@@ -4,10 +4,13 @@ This is a userscript for the popular chat bot [Firebot](https://firebot.app/) im
 
 ## Features:
 
-* Randomly selects a word to guess from a dictionary file
+* Randomly selects a word to guess from one of the available sources:
+  * a dictionary file
+  * the [Urban Dictionary](https://www.urbandictionary.com/)
 * Displays the current game status in the Firebot overlay
 * Currency integration for guess costs and win payouts
 * Exports a number of bot events for further customizing with sounds, videos or graphics
+* Exports an effect for starting the game from other events
 
 ## Requirements
 
