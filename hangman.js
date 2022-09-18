@@ -44,24 +44,15 @@ const hangmanCommand = {
                 }
                 // break intentionally omitted
             case "restart":
-                state.currentGame = {
-                    guesses: []
-                }
-
-                const word = await selectWord()
-                Object.assign(state.currentGame, word)
-                state.currentGame.word = state.currentGame.word.toLowerCase().trim()
-
-                globals.twitchChat.sendChatMessage(renderCurrentWord());
-                globals.httpServer.sendToOverlay("hangman", {letters: getLetters(), fails: getFails()});
-                globals.commandManager.registerSystemCommand(guessCommand)
-                globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-started')
+                await startGame()
                 break;
             case "stop":
                 globals.commandManager.unregisterSystemCommand(guessCommand.definition.id)
-                globals.httpServer.sendToOverlay("hangman", {});
-                globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-ended')
-                state.currentGame = null;
+                if (state.currentGame) {
+                    globals.httpServer.sendToOverlay("hangman", {})
+                    globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-ended')
+                }
+                state.currentGame = null
                 break;
         }
     }
@@ -164,6 +155,21 @@ const guessCommand = {
             globals.httpServer.sendToOverlay("hangman", {letters: getLetters(), fails});
         }
     }
+}
+
+async function startGame() {
+    state.currentGame = {
+        guesses: []
+    }
+
+    const word = await selectWord()
+    Object.assign(state.currentGame, word)
+    state.currentGame.word = state.currentGame.word.toLowerCase().trim()
+
+    globals.twitchChat.sendChatMessage(renderCurrentWord());
+    globals.httpServer.sendToOverlay("hangman", {letters: getLetters(), fails: getFails()});
+    globals.commandManager.registerSystemCommand(guessCommand)
+    globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-started')
 }
 
 function sendDefinition() {
@@ -276,7 +282,7 @@ const hangmanStyles = `
     }
 `
 
-const hangmanEffect = {
+const hangmanOverlayEffect = {
     definition: {
         id: "de.justjakob.hangmangame::overlayEffect",
         name: "Hangman overlay",
@@ -349,6 +355,22 @@ const hangmanEffect = {
                 }
             }
         }
+    }
+}
+
+const hangmanTriggerEffect = {
+    definition: {
+        id: "de.justjakob.hangmangame::startEffect",
+        name: "Trigger hangman",
+        description: "Starts a new game of hangman",
+        icon: "fa-sign-hanging",
+        categories: [],
+        dependency: [],
+    },
+    onTriggerEvent: async event => {
+        if (!globals.settings.active) return Promise.reject(new Error("Hangman game is not active"))
+        if (state.currentGame) return Promise.reject(new Error("There is already a game of hangman running"))
+        await startGame()
     }
 }
 
@@ -484,11 +506,17 @@ const gameDef = {
         }
     },
     onLoad: gameSettings => {
-        globals.settings = gameSettings;
+        if (gameSettings) globals.settings = gameSettings;
         globals.commandManager.registerSystemCommand(hangmanCommand)
     },
     onUnload: gameSettings => {
-        globals.settings = gameSettings;
+        // this seems to be undefined, so i don't think this works as intended
+        //globals.settings = gameSettings
+        if (state.currentGame) {
+            globals.httpServer.sendToOverlay("hangman", {})
+            globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-ended')
+        }
+        state.currentGame = null
         globals.commandManager.unregisterSystemCommand(hangmanCommand.definition.id)
         globals.commandManager.unregisterSystemCommand(guessCommand.definition.id)
     },
@@ -512,16 +540,17 @@ const globals = {
 module.exports = {
     run: runRequest => {
         // this is ugly, but i currently don't know how to get to these objects at a later point.
-        globals.gameManager = runRequest.modules.gameManager;
-        globals.commandManager = runRequest.modules.commandManager;
-        globals.twitchChat = runRequest.modules.twitchChat;
-        globals.httpServer = runRequest.modules.httpServer;
-        globals.eventManager = runRequest.modules.eventManager;
-        globals.currencyDb = runRequest.modules.currencyDb;
-        globals.request = runRequest.modules.request;
-        runRequest.modules.gameManager.registerGame(gameDef);
-        runRequest.modules.eventManager.registerEventSource(hangmanEventSource);
-        runRequest.modules.effectManager.registerEffect(hangmanEffect)
+        globals.gameManager = runRequest.modules.gameManager
+        globals.commandManager = runRequest.modules.commandManager
+        globals.twitchChat = runRequest.modules.twitchChat
+        globals.httpServer = runRequest.modules.httpServer
+        globals.eventManager = runRequest.modules.eventManager
+        globals.currencyDb = runRequest.modules.currencyDb
+        globals.request = runRequest.modules.request
+        runRequest.modules.gameManager.registerGame(gameDef)
+        runRequest.modules.eventManager.registerEventSource(hangmanEventSource)
+        runRequest.modules.effectManager.registerEffect(hangmanOverlayEffect)
+        runRequest.modules.effectManager.registerEffect(hangmanTriggerEffect)
     },
     getScriptManifest: () => {
         return {
