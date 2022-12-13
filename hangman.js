@@ -252,6 +252,8 @@ function renderCurrentWord() {
 const hangmanStyles = `
     .hangman {
         color: white;
+        background-color: rgba(0, 0, 0, 0.25);
+        border-radius: 10px;
         position: absolute;
         left: 50%;
         top: 50%;
