@@ -167,7 +167,7 @@ async function startGame() {
     state.currentGame.word = state.currentGame.word.toLowerCase().trim()
 
     globals.twitchChat.sendChatMessage(renderCurrentWord());
-    globals.httpServer.sendToOverlay("hangman", {letters: getLetters(), fails: getFails()});
+    globals.httpServer.sendToOverlay("hangman", {letters: getLetters(), fails: getFails(), position: globals.settings.settings.overlay.position});
     globals.commandManager.registerSystemCommand(guessCommand)
     globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-started')
 }
@@ -256,11 +256,46 @@ const hangmanStyles = `
         left: 50%;
         top: 50%;
         transform: translate(-50%, -50%);
+        text-align: center;
+        padding: 20px;
+        margin: 20px;
+    }
+    
+    .hangman--top {
+        top: 0;
+        bottom: unset;
+        transform: unset;
+    }
+    
+    .hangman--bottom {
+        bottom: 0;
+        top: unset;
+        transform: unset;
+    }
+    
+    .hangman--left {
+        left: 0;
+        right: unset;
+        transform: unset;
+    }
+    
+    .hangman--right {
+        right: 0;
+        left: unset;
+    }
+    
+    .hangman--top.hangman--center, .hangman--bottom.hangman--center {
+        transform: translate(-50%, 0);
+    }
+    
+    .hangman--center.hangman--left, .hangman--center.hangman--right {
+        transform: translate(0, -50%);
     }
     
     .hangman-gallows {
         width: 400px;
         height: 400px;
+        margin: 0 auto;
     }
     
     .hangman-gallows svg {
@@ -337,6 +372,13 @@ const hangmanOverlayEffect = {
                                 <div class="hangman-letters"></div>
                             </div>`)
                         $wrapper.append($el);
+                    }
+
+                    if (data.position) {
+                        $el.removeClass(['hangman--top', 'hangman--bottom', 'hangman--right', 'hangman--right', 'hangman--center']);
+                        data.position.split('-').forEach(function(p) {
+                            $el.addClass('hangman--' + p);
+                        });
                     }
 
                     $el.find('.hangman-letters').text(data.letters ? data.letters.map(l => l ? l : "_").join(' ') : '')
@@ -455,12 +497,33 @@ const gameDef = {
             description: "Settings for the hangman display on the firebot overlay",
             sortRank: 5,
             settings: {
+                position: {
+                    type: "enum",
+                    title: "Overlay position",
+                    description: "Where should the overlay appear on screen?",
+                    default: "center-center",
+                    sortRank: 6,
+                    options: {
+                        "top-left": "Top left",
+                        "top-center": "Top center",
+                        "top-right": "Top right",
+                        "center-left": "Center left",
+                        "center-center": "Center",
+                        "center-right": "Center right",
+                        "bottom-left": "Bottom left",
+                        "bottom-center": "Bottom center",
+                        "bottom-right": "Bottom right"
+                    },
+                    validation: {
+                        required: true
+                    }
+                },
                 lingerTime: {
                     type: "number",
                     title: "Overlay linger time",
                     description: "How long the hangman overlay should stay on screen after a game is finished (in seconds)",
                     default: 5,
-                    sortRank: 6,
+                    sortRank: 7,
                     validation: {
                         required: false,
                         min: 0
@@ -471,13 +534,13 @@ const gameDef = {
         currency: {
             title: "Currency settings",
             description: "Configure costs and rewards",
-            sortRank: 7,
+            sortRank: 8,
             settings: {
                 currencyId: {
                     type: "currency-select",
                     title: "Currency",
                     description: "Which currency to use",
-                    sortRank: 8,
+                    sortRank: 9,
                     validation: {
                         required: true
                     }
@@ -487,7 +550,7 @@ const gameDef = {
                     title: "Guess cost",
                     description: "How much will a single guess cost",
                     default: 0,
-                    sortRank: 9,
+                    sortRank: 10,
                     validation: {
                         required: false
                     }
@@ -497,7 +560,7 @@ const gameDef = {
                     title: "Payout",
                     description: "How much the winner of a game will receive",
                     default: 0,
-                    sortRank: 10,
+                    sortRank: 11,
                     validation: {
                         required: false
                     }
