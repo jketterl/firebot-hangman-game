@@ -351,10 +351,17 @@ const hangmanOverlayEffect = {
                 const $wrapper = $('.wrapper')
                 let $el = $wrapper.find('.hangman')
 
+                let selectedClasses = [];
+                if (data.position) {
+                    selectedClasses = data.position.split('-').map(p => 'hangman--' + p).join(' ');
+                    const allClasses = ['top', 'bottom', 'left', 'right', 'center'].map(p => 'hangman--' + p).join(' ');
+                    $el.removeClass(allClasses).addClass(selectedClasses);
+                }
+
                 if (data.letters) {
                     if (!$el.length) {
                         $el = $(`
-                            <div class="hangman">
+                            <div class="hangman ${selectedClasses}">
                                 <div class="hangman-gallows">
                                     <svg viewbox="0 0 210 210">
                                         <g class="hangman-elements" style="fill:none;stroke-width:5;stroke-linecap:round;stroke-dasharray:none;stroke-opacity:1" transform="translate(5,5)">
@@ -374,13 +381,6 @@ const hangmanOverlayEffect = {
                                 <div class="hangman-letters"></div>
                             </div>`)
                         $wrapper.append($el);
-                    }
-
-                    if (data.position) {
-                        $el.removeClass(['hangman--top', 'hangman--bottom', 'hangman--right', 'hangman--right', 'hangman--center']);
-                        data.position.split('-').forEach(function(p) {
-                            $el.addClass('hangman--' + p);
-                        });
                     }
 
                     $el.find('.hangman-letters').text(data.letters ? data.letters.map(l => l ? l : "_").join(' ') : '')
@@ -588,6 +588,13 @@ const gameDef = {
     onSettingsUpdate: gameSettings => {
         // this seems to be undefined, so i don't think this works as intended
         //globals.settings = gameSettings
+        if (state.currentGame) {
+            globals.httpServer.sendToOverlay("hangman", {
+                letters: getLetters(),
+                fails: getFails(),
+                position: globals.settings.settings.overlay.position
+            });
+        }
     }
 }
 
