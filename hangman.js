@@ -744,7 +744,6 @@ module.exports = {
         ].forEach(v => {
             runRequest.modules.replaceVariableManager.registerReplaceVariable(v)
         })
-        runRequest.modules.effectMana
     },
     getScriptManifest: () => {
         return {
