@@ -116,8 +116,9 @@ const guessCommand = {
             sendDefinition()
             globals.commandManager.unregisterSystemCommand(guessCommand.definition.id)
             globals.httpServer.sendToOverlay("hangman", {letters: getLetters(true), fails: fails, finished: true, lingerTime: globals.settings.settings.overlay.lingerTime});
-            globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-won')
-            globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-ended')
+            const { provider, word, definition } = state.currentGame
+            globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-won', {winner: username, provider, word, definition})
+            globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-ended', {winner: username, provider, word, definition})
             state.currentGame = null;
         }
 
@@ -145,8 +146,9 @@ const guessCommand = {
                 sendDefinition()
                 globals.commandManager.unregisterSystemCommand(guessCommand.definition.id)
                 globals.httpServer.sendToOverlay("hangman", {letters: getLetters(true), fails: fails, finished: true, lingerTime: globals.settings.settings.overlay.lingerTime});
-                globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-lost')
-                globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-ended')
+                const { provider, word, definition } = state.currentGame
+                globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-lost', {provider, word, definition})
+                globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-ended', {provider, word, definition})
                 state.currentGame = null;
                 return
             }
@@ -431,18 +433,128 @@ const hangmanEventSource = {
         id: "game-ended",
         name: "Game ended",
         description: "When a game ends (independent of outcome)",
-        cached: false
+        cached: false,
+        manualMetadata: {
+            provider: "dummy",
+            word: "random",
+            definition: "made, done, or happening without method or conscious decision."
+        }
     },{
         id: "game-won",
         name: "Game won",
         description: "When a game is won",
-        cached: false
+        cached: false,
+        manualMetadata: {
+            winner: "Firebot",
+            provider: "dummy",
+            word: "random",
+            definition: "made, done, or happening without method or conscious decision."
+        }
     },{
         id: "game-lost",
         name: "Game lost",
         description: "When a game is lost",
-        cached: false
+        cached: false,
+        manualMetadata: {
+            provider: "dummy",
+            word: "random",
+            definition: "made, done, or happening without method or conscious decision."
+        }
     }]
+}
+
+const hangmanWinnerVariable = {
+    definition: {
+        handle: "hangmanWinner",
+        description: "Winner of the hangman game",
+        triggers: {
+            event: [
+                "de.justjakob.hangmangame:game-won"
+            ],
+            manual: true
+        },
+        categories: [
+            "trigger based"
+        ],
+        possibleDataOutput: [
+            "text"
+        ]
+    },
+    evaluator: (trigger) => {
+        return trigger.metadata.eventData.winner || ''
+    }
+}
+
+const hangmanProviderVariable = {
+    definition: {
+        handle: "hangmanProvider",
+        description: "Where did the hangman word come from?",
+        triggers: {
+            event: [
+                "de.justjakob.hangmangame:game-won",
+                "de.justjakob.hangmangame:game-lost",
+                "de.justjakob.hangmangame:game-ended"
+            ],
+            manual: true
+        },
+        categories: [
+            "trigger based"
+        ],
+        possibleDataOutput: [
+            "text"
+        ]
+    },
+    evaluator: (trigger) => {
+        return trigger.metadata.eventData.provider || ''
+    }
+}
+
+const hangmanWordVariable = {
+    definition: {
+        handle: "hangmanWord",
+        description: "The word to be guessed in the hangman game",
+        triggers: {
+            event: [
+                "de.justjakob.hangmangame:game-won",
+                "de.justjakob.hangmangame:game-lost",
+                "de.justjakob.hangmangame:game-ended",
+            ],
+            manual: true
+        },
+        categories: [
+            "trigger based"
+        ],
+        possibleDataOutput: [
+            "text"
+        ]
+    },
+    evaluator: (trigger) => {
+        return trigger.metadata.eventData.word || ''
+    }
+}
+
+const hangmanDefinitionVariable = {
+    definition: {
+        handle: "hangmanDefinition",
+        description: "The dictionary definition of the hangman word, if available",
+        triggers: {
+            event: [
+                "de.justjakob.hangmangame:game-won",
+                "de.justjakob.hangmangame:game-lost",
+                "de.justjakob.hangmangame:game-ended",
+            ],
+            manual: true
+        },
+        categories: [
+            "trigger based"
+        ],
+        possibleDataOutput: [
+            "text"
+        ]
+    },
+    evaluator: (trigger) => {
+        return trigger.metadata.eventData.definition || ''
+    }
 }
 
  /**
@@ -579,7 +691,8 @@ const gameDef = {
         //globals.settings = gameSettings
         if (state.currentGame) {
             globals.httpServer.sendToOverlay("hangman", {})
-            globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-ended')
+            const { provider, word, definition } = state.currentGame
+            globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-ended', { provider, word, definition })
         }
         state.currentGame = null
         globals.commandManager.unregisterSystemCommand(hangmanCommand.definition.id)
@@ -622,7 +735,16 @@ module.exports = {
         runRequest.modules.gameManager.registerGame(gameDef)
         runRequest.modules.eventManager.registerEventSource(hangmanEventSource)
         runRequest.modules.effectManager.registerEffect(hangmanOverlayEffect)
-        runRequest.modules.effectManager.registerEffect(hangmanTriggerEffect)
+        runRequest.modules.effectManager.registerEffect(hangmanTriggerEffect);
+        [
+            hangmanWinnerVariable,
+            hangmanProviderVariable,
+            hangmanWordVariable,
+            hangmanDefinitionVariable
+        ].forEach(v => {
+            runRequest.modules.replaceVariableManager.registerReplaceVariable(v)
+        })
+        runRequest.modules.effectMana
     },
     getScriptManifest: () => {
         return {
