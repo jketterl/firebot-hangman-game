@@ -88,17 +88,30 @@ export class HangmanGame {
         return letter === ' ' || this.guesses.includes(letter);
     }
 
-    getFails() {
+    getFails(): number {
         const filtered = this.guesses.filter(letter =>
             !this.word.includes(letter)
         )
         return filtered.length
     }
 
-    isComplete() {
+    isComplete(): boolean {
         return this.word.split('').reduce((prev, curr) => {
             return prev && this.isLetterShown(curr);
         }, true)
+    }
+
+    isWordCorrect(word: string): boolean {
+        return word === this.word
+    }
+
+    hasBeenGuessed(letter: string): boolean {
+        return this.guesses.includes(letter)
+    }
+
+    guessLetter(letter: string): boolean {
+        this.guesses.push(letter)
+        return this.isComplete()
     }
 
 }

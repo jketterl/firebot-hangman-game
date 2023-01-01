@@ -145,18 +145,16 @@ const GuessCommand: SystemCommand = {
 
         if (guess.length > 1) {
             // more than one letter -> solve attempt
-            if (HangmanGame.currentGame.word === guess) await winGame()
+            if (HangmanGame.currentGame.isWordCorrect(guess)) await winGame()
         } else {
             // single letter -> guess
-            if (HangmanGame.currentGame.guesses.includes(guess)) {
+            if (HangmanGame.currentGame.hasBeenGuessed(guess)) {
                 //@ts-ignore firebot types are not updated for message responses
                 globals.twitchChat.sendChatMessage(`Letter "${guess}" has already been guessed. Try again!`, null, null, event.chatMessage.id);
                 return
             }
 
-            HangmanGame.currentGame.guesses.push(guess);
-
-            if (HangmanGame.currentGame.isComplete()) {
+            if (HangmanGame.currentGame.guessLetter(guess)) {
                 await winGame();
                 return
             }
