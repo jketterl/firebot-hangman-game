@@ -3,7 +3,7 @@ import HangmanGameDefinition from "./gamedef"
 import HangmanEventSource from "./events";
 import HangmanOverlayEffect from "./overlay";
 import HangmanTriggerEffect from "./trigger";
-import {HangmanWinnerVariable, HangmanWordVariable, HangmanProviderVariable, HangmanDefinitionVariable} from "./variables";
+import {HangmanWinnerVariable, HangmanWordVariable, HangmanProviderVariable, HangmanDefinitionVariable, HangmanExampleVariable} from "./variables";
 import globals from "./globals";
 
 const script: Firebot.CustomScript = {
@@ -35,7 +35,8 @@ const script: Firebot.CustomScript = {
             HangmanWinnerVariable,
             HangmanProviderVariable,
             HangmanWordVariable,
-            HangmanDefinitionVariable
+            HangmanDefinitionVariable,
+            HangmanExampleVariable
         ].forEach(v => {
             runRequest.modules.replaceVariableManager.registerReplaceVariable(v)
         })

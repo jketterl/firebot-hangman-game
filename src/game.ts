@@ -2,7 +2,7 @@ import * as fs from "fs";
 import globals from "./globals";
 import { GuessCommand } from "./commands"
 
-type WordDefinition = {
+export type WordDefinition = {
     word: string;
     provider: string;
     definition?: string;

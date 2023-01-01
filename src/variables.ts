@@ -1,4 +1,5 @@
 import {ReplaceVariable} from "@crowbartools/firebot-custom-scripts-types/types/modules/replace-variable-manager";
+import {WordDefinition} from "./game";
 
 const HangmanWinnerVariable: ReplaceVariable = {
     definition: {
@@ -36,7 +37,8 @@ const HangmanProviderVariable: ReplaceVariable = {
         ]
     },
     evaluator: (trigger) => {
-        return trigger.metadata.eventData.provider || ''
+        const wordDefinition = trigger.metadata.eventData.wordDefinition as WordDefinition
+        return wordDefinition.provider
     }
 }
 
@@ -57,7 +59,8 @@ const HangmanWordVariable: ReplaceVariable = {
         ]
     },
     evaluator: (trigger) => {
-        return trigger.metadata.eventData.word || ''
+        const wordDefinition = trigger.metadata.eventData.wordDefinition as WordDefinition
+        return wordDefinition.word
     }
 }
 
@@ -78,8 +81,37 @@ const HangmanDefinitionVariable: ReplaceVariable = {
         ]
     },
     evaluator: (trigger) => {
-        return trigger.metadata.eventData.definition || ''
+        const wordDefinition = trigger.metadata.eventData.wordDefinition as WordDefinition
+        return wordDefinition.definition || ''
     }
 }
 
-export { HangmanDefinitionVariable, HangmanProviderVariable, HangmanWinnerVariable, HangmanWordVariable }
+const HangmanExampleVariable: ReplaceVariable = {
+    definition: {
+        handle: "hangmanExample",
+        description: "The dictionary example of the hangman word, if available",
+        triggers: {
+            event: [
+                "de.justjakob.hangmangame:game-won",
+                "de.justjakob.hangmangame:game-lost",
+                "de.justjakob.hangmangame:game-ended",
+            ],
+            manual: true
+        },
+        possibleDataOutput: [
+            "text"
+        ]
+    },
+    evaluator: (trigger) => {
+        const wordDefinition = trigger.metadata.eventData.wordDefinition as WordDefinition
+        return wordDefinition.example || ''
+    }
+}
+
+export {
+    HangmanDefinitionVariable,
+    HangmanProviderVariable,
+    HangmanWinnerVariable,
+    HangmanWordVariable,
+    HangmanExampleVariable
+}

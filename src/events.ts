@@ -14,9 +14,11 @@ const HangmanEventSource: EventSource = {
         description: "When a game ends (independent of outcome)",
         cached: false,
         manualMetadata: {
-            provider: "dummy",
-            word: "random",
-            definition: "made, done, or happening without method or conscious decision."
+            wordDefinition:{
+                provider: "dummy",
+                word: "random",
+                definition: "made, done, or happening without method or conscious decision."
+            }
         }
     },{
         id: "game-won",
@@ -25,9 +27,11 @@ const HangmanEventSource: EventSource = {
         cached: false,
         manualMetadata: {
             winner: "Firebot",
-            provider: "dummy",
-            word: "random",
-            definition: "made, done, or happening without method or conscious decision."
+            wordDefinition: {
+                provider: "dummy",
+                word: "random",
+                definition: "made, done, or happening without method or conscious decision."
+            }
         }
     },{
         id: "game-lost",
@@ -35,9 +39,11 @@ const HangmanEventSource: EventSource = {
         description: "When a game is lost",
         cached: false,
         manualMetadata: {
-            provider: "dummy",
-            word: "random",
-            definition: "made, done, or happening without method or conscious decision."
+            wordDefinition: {
+                provider: "dummy",
+                word: "random",
+                definition: "made, done, or happening without method or conscious decision."
+            }
         }
     }]
 }

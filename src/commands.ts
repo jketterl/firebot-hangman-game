@@ -58,7 +58,7 @@ const HangmanCommand: SystemCommand = {
                 globals.commandManager.unregisterSystemCommand(GuessCommand.definition.id)
                 if (HangmanGame.currentGame) {
                     globals.httpServer.sendToOverlay("hangman", {})
-                    globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-ended', {})
+                    globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-ended', { wordDefinition: HangmanGame.currentGame.wordDefinition })
                 }
                 HangmanGame.currentGame = null
                 break;
@@ -138,9 +138,8 @@ const GuessCommand: SystemCommand = {
             sendDefinition()
             globals.commandManager.unregisterSystemCommand(GuessCommand.definition.id)
             globals.httpServer.sendToOverlay("hangman", {letters: HangmanGame.currentGame.getLetters(true), fails: fails, finished: true, lingerTime: globals.settings.settings.overlay.lingerTime});
-            const { provider, word, definition } = HangmanGame.currentGame.wordDefinition
-            globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-won', {winner: username, provider, word, definition})
-            globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-ended', {winner: username, provider, word, definition})
+            globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-won', {winner: username, wordDefinition: HangmanGame.currentGame.wordDefinition})
+            globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-ended', {winner: username, wordDefinition: HangmanGame.currentGame.wordDefinition})
             HangmanGame.currentGame = null;
         }
 
@@ -169,9 +168,8 @@ const GuessCommand: SystemCommand = {
                 sendDefinition()
                 globals.commandManager.unregisterSystemCommand(GuessCommand.definition.id)
                 globals.httpServer.sendToOverlay("hangman", {letters: HangmanGame.currentGame.getLetters(true), fails: fails, finished: true, lingerTime: globals.settings.settings.overlay.lingerTime});
-                const { provider, word, definition } = HangmanGame.currentGame.wordDefinition
-                globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-lost', {provider, word, definition})
-                globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-ended', {provider, word, definition})
+                globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-lost', {wordDefinition: HangmanGame.currentGame.wordDefinition})
+                globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-ended', {wordDefinition: HangmanGame.currentGame.wordDefinition})
                 HangmanGame.currentGame = null;
                 return
             }

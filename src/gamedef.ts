@@ -156,8 +156,7 @@ const HangmanGameDefinition: FirebotGame = {
         //globals.settings = gameSettings
         if (HangmanGame.currentGame) {
             globals.httpServer.sendToOverlay("hangman", {})
-            const { provider, word, definition } = HangmanGame.currentGame.wordDefinition
-            globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-ended', { provider, word, definition })
+            globals.eventManager.triggerEvent('de.justjakob.hangmangame', 'game-ended', { wordDefinition: HangmanGame.currentGame.wordDefinition })
         }
         HangmanGame.currentGame = null
         globals.commandManager.unregisterSystemCommand(HangmanCommand.definition.id)
