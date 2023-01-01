@@ -23,6 +23,7 @@ const HangmanGameDefinition: FirebotGame = {
                     showBottomHr: false,
                     default: "file",
                     sortRank: 2,
+                    //@ts-ignore firebot types don't know about enum options
                     options: {
                         file: "Dictionary file",
                         // wordnik: "Wordnik API",
@@ -71,6 +72,7 @@ const HangmanGameDefinition: FirebotGame = {
                     showBottomHr: false,
                     default: "center-center",
                     sortRank: 6,
+                    //@ts-ignore firebot types don't know about enum options
                     options: {
                         "top-left": "Top left",
                         "top-center": "Top center",
