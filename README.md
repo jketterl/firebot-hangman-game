@@ -18,7 +18,7 @@ This is a userscript for the popular chat bot [Firebot](https://firebot.app/) im
 
 ## How to setup
 
-* Download the file `hangman.js` and place it in your Firebot user script directory.
+* Download the file `dist/hangman.js` and place it in your Firebot user script directory.
 * Add and enable the script on the Firebot settings page
 * Activate and configure the Hangman game on the Firebot games page
 
