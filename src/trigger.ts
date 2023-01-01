@@ -1,7 +1,6 @@
 import {Effects} from "@crowbartools/firebot-custom-scripts-types/types/effects";
 import globals from "./globals";
 import {HangmanGame} from "./game";
-import {HangmanCommand} from "./commands";
 
 const HangmanTriggerEffect: Effects.EffectType<any> = {
     definition: {
