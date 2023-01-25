@@ -1,5 +1,5 @@
 import { Firebot } from "@crowbartools/firebot-custom-scripts-types";
-import HangmanGameDefinition from "./gamedef"
+import GameDefinition from "./gamedef"
 import HangmanEventSource from "./events";
 import HangmanOverlayEffect from "./overlay";
 import HangmanTriggerEffect from "./trigger";
@@ -27,7 +27,7 @@ const script: Firebot.CustomScript = {
         globals.eventManager = runRequest.modules.eventManager
         globals.currencyDb = runRequest.modules.currencyDb
         globals.request = runRequest.modules.request
-        runRequest.modules.gameManager.registerGame(HangmanGameDefinition)
+        runRequest.modules.gameManager.registerGame(GameDefinition)
         runRequest.modules.eventManager.registerEventSource(HangmanEventSource)
         runRequest.modules.effectManager.registerEffect(HangmanOverlayEffect)
         runRequest.modules.effectManager.registerEffect(HangmanTriggerEffect);

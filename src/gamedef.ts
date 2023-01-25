@@ -3,7 +3,7 @@ import globals from "./globals";
 import {HangmanGame} from "./game";
 import {HangmanCommand, GuessCommand} from "./commands";
 
-const HangmanGameDefinition: FirebotGame = {
+const GameDefinition: FirebotGame = {
     id: "de.justjakob.hangmangame", // unique id for the game
     name: "Hangman", // human readable name for the game
     subtitle: "Alphabet Dangle", // very short tagline for the game, shows up in the games tab
@@ -148,7 +148,13 @@ const HangmanGameDefinition: FirebotGame = {
         }
     },
     onLoad: gameSettings => {
-        if (gameSettings) globals.settings = gameSettings;
+        if (gameSettings) {
+            globals.settings = gameSettings;
+        } else {
+            // firebot does not pass gameSettings when loading the game for the first time, so we need to get them ourselves
+            //@ts-ignore firebot types does list this method even though it exists
+            globals.settings = globals.gameManager.getGameSettings(GameDefinition.id)
+        }
         globals.commandManager.registerSystemCommand(HangmanCommand)
     },
     onUnload: gameSettings => {
@@ -175,4 +181,4 @@ const HangmanGameDefinition: FirebotGame = {
     }
 }
 
-export default HangmanGameDefinition
+export default GameDefinition
